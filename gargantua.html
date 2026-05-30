@@ -1,0 +1,2145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GARGANTUA — Kerr Black Hole Observatory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --void:        #000000;
+  --amber:       #e8a040;
+  --amber-dim:   rgba(232, 160, 64, 0.35);
+  --amber-glow:  rgba(232, 160, 64, 0.12);
+  --ice:         #a8c8e8;
+  --ice-dim:     rgba(168, 200, 232, 0.4);
+  --white:       #f2ede8;
+  --muted:       rgba(242, 237, 232, 0.55);
+  --ghost:       rgba(242, 237, 232, 0.25);
+  --glass-bg:    rgba(4, 4, 8, 0.72);
+  --glass-border:rgba(255, 255, 255, 0.08);
+  --font-head:   'Syne', sans-serif;
+  --font-mono:   'IBM Plex Mono', monospace;
+  --font-serif:  'Cormorant Garamond', serif;
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  overflow: hidden;
+  background: var(--void);
+  color: var(--white);
+  font-family: var(--font-head);
+  user-select: none;
+  cursor: crosshair;
+}
+
+canvas#c {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  inset: 0;
+}
+
+/* ─── LOADER ─────────────────────────────────────────────── */
+#loader {
+  position: fixed; inset: 0; z-index: 1000;
+  background: #000;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 32px;
+  transition: opacity 1.2s ease;
+}
+#loader.fade { opacity: 0; pointer-events: none; }
+.loader-name {
+  font-family: var(--font-head);
+  font-size: clamp(2rem, 6vw, 4.5rem);
+  font-weight: 800;
+  letter-spacing: 0.35em;
+  color: var(--white);
+  text-transform: uppercase;
+}
+.loader-sub {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.5em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.loader-bar-wrap {
+  width: 280px;
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+  position: relative;
+  overflow: hidden;
+}
+.loader-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--amber), #fff);
+  width: 0%;
+  transition: width 2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 12px var(--amber);
+}
+.loader-status {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.3em;
+  color: var(--ghost);
+  text-transform: uppercase;
+}
+
+/* ─── GLOBAL HUD LAYOUT ──────────────────────────────────── */
+#hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+
+/* ─── CORNER BRACKETS ────────────────────────────────────── */
+.corner {
+  position: absolute;
+  width: 28px; height: 28px;
+  border-color: rgba(255,255,255,0.18);
+  border-style: solid;
+  opacity: 0.6;
+}
+.corner-tl { top: 20px; left: 20px; border-width: 1px 0 0 1px; }
+.corner-tr { top: 20px; right: 20px; border-width: 1px 1px 0 0; }
+.corner-bl { bottom: 20px; left: 20px; border-width: 0 0 1px 1px; }
+.corner-br { bottom: 20px; right: 20px; border-width: 0 1px 1px 0; }
+
+/* ─── TOP BAR ─────────────────────────────────────────────── */
+#topbar {
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 72px;
+  display: flex; align-items: center;
+  padding: 0 40px;
+  gap: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  background: linear-gradient(180deg, rgba(4, 4, 12, 0.2) 0%, rgba(4, 4, 12, 0.02) 100%);
+  backdrop-filter: blur(32px) saturate(1.6);
+  -webkit-backdrop-filter: blur(32px) saturate(1.6);
+  z-index: 100;
+  transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+#topbar::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; width: 100%; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(232, 160, 64, 0.20), transparent);
+}
+
+.tb-brand {
+  display: flex; flex-direction: column; gap: 4px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  padding-right: 36px;
+  margin-right: 36px;
+  cursor: pointer;
+  transition: all 0.4s ease;
+}
+.tb-brand:hover .tb-name {
+  animation: glitch 0.3s cubic-bezier(.25,.46,.45,.94) both infinite;
+}
+
+@keyframes glitch {
+  0% { transform: translate(0); text-shadow: 0 0 20px rgba(255,255,255,0.2); }
+  20% { transform: translate(-2px, 2px); text-shadow: 2px 0 #ff00c1, -2px 0 #00fff9; }
+  40% { transform: translate(-2px, -2px); text-shadow: -2px 0 #ff00c1, 2px 0 #00fff9; }
+  60% { transform: translate(2px, 2px); text-shadow: 2px 0 #ff00c1, -2px 0 #00fff9; }
+  80% { transform: translate(2px, -2px); text-shadow: -2px 0 #ff00c1, 2px 0 #00fff9; }
+  100% { transform: translate(0); }
+}
+.tb-name {
+  font-family: var(--font-head);
+  font-size: 1.45rem; font-weight: 800;
+  letter-spacing: 0.45em;
+  color: var(--white);
+  line-height: 1;
+  text-transform: uppercase;
+  text-shadow: 0 0 25px rgba(255,255,255,0.12);
+}
+.tb-tagline {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.45em;
+  color: var(--amber);
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.tb-tickers {
+  display: flex; gap: 40px; flex: 1;
+  align-items: center;
+}
+.ticker-item {
+  display: flex; flex-direction: column; gap: 4px;
+  position: relative;
+  min-width: 130px;
+  transition: transform 0.3s ease;
+}
+.ticker-item:hover {
+  transform: translateY(-2px);
+}
+.ticker-item::before {
+  content: '[';
+  position: absolute; left: -10px; top: 0;
+  font-family: var(--font-mono); font-size: 0.42rem; color: var(--ghost);
+}
+.ticker-item::after {
+  content: '';
+  position: absolute; right: -21px; top: 20%; height: 60%;
+  width: 1px; background: rgba(255, 255, 255, 0.06);
+}
+.ticker-item:last-child::after { display: none; }
+.ticker-item:first-child::before { left: 0; }
+
+.t-label {
+  font-family: var(--font-mono);
+  font-size: 0.45rem; letter-spacing: 0.35em;
+  color: var(--ghost); text-transform: uppercase;
+  margin-left: 10px;
+  opacity: 0.65;
+}
+.t-value {
+  font-family: var(--font-mono);
+  font-size: 0.9rem; font-weight: 600;
+  color: #ffcc80; 
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 15px rgba(255, 204, 128, 0.15);
+  margin-left: 10px;
+}
+
+.tb-right {
+  display: flex; align-items: center; gap: 24px;
+  margin-left: auto;
+}
+.status-indicator {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.5rem; letter-spacing: 0.25em;
+  color: var(--muted);
+  background: rgba(255,255,255,0.03);
+  padding: 6px 14px;
+  border-radius: 4px;
+  border: 1px solid var(--glass-border);
+}
+.pulse-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 10px #4ade80, 0 0 20px rgba(74, 222, 128, 0.4);
+  animation: dotpulse 2.5s infinite;
+}
+@keyframes dotpulse {
+  0%,100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.5); }
+}
+.fps-display {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--white);
+  letter-spacing: 0.2em;
+  padding: 6px 12px;
+  border: 1px solid var(--amber-dim);
+  border-radius: 4px;
+  background: var(--glass-bg);
+  box-shadow: inset 0 0 10px var(--amber-glow);
+}
+
+@media (max-width: 1200px) {
+  .tb-tickers { gap: 20px; }
+  .ticker-item { min-width: 100px; }
+  .t-value { font-size: 0.7rem; }
+}
+@media (max-width: 900px) {
+  .tb-tickers { display: none; }
+  #topbar { justify-content: space-between; }
+}
+
+/* ─── BOTTOM BAR ──────────────────────────────────────────── */
+#botbar {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 44px;
+  display: flex; align-items: center;
+  padding: 0 36px;
+  border-top: 1px solid var(--glass-border);
+  background: linear-gradient(0deg, rgba(0,0,0,0.6) 0%, transparent 100%);
+  gap: 28px;
+  transition: opacity 0.4s;
+  pointer-events: auto;
+}
+
+/* ─── SOCIAL DOCK ────────────────────────────────────────── */
+#social-dock {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  padding-right: 28px;
+  border-right: 1px solid var(--glass-border);
+  height: 24px;
+}
+.social-btn {
+  width: 16px;
+  height: 16px;
+  color: var(--ghost);
+  transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+}
+.social-btn svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+.social-btn:hover {
+  color: var(--amber);
+  transform: translateY(-2px) scale(1.1);
+  opacity: 1;
+  filter: drop-shadow(0 0 8px var(--amber-glow));
+}
+.bb-item {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.42rem; letter-spacing: 0.2em;
+  color: var(--ghost);
+}
+.bb-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--amber); }
+.bb-coords {
+  font-family: var(--font-mono);
+  font-size: 0.42rem; letter-spacing: 0.15em;
+  color: var(--ghost);
+  margin-left: auto;
+}
+
+/* ─── LEFT PANEL (CONTROLS) ───────────────────────────────── */
+#ctrl-panel {
+  position: absolute;
+  left: -380px; top: 90px; bottom: 64px;
+  width: 340px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 0 12px 12px 0;
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  display: flex; flex-direction: column;
+  transition: left 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+  overflow: hidden;
+  pointer-events: auto;
+  box-shadow: 4px 0 40px rgba(0,0,0,0.6);
+  z-index: 101;
+}
+#ctrl-panel.open { left: 0; }
+
+.cp-header {
+  padding: 24px 24px 18px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+.cp-title {
+  font-family: var(--font-head);
+  font-size: 0.85rem; font-weight: 700;
+  letter-spacing: 0.3em; text-transform: uppercase;
+  color: var(--white);
+  display: flex; align-items: center; gap: 10px;
+}
+.cp-title-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+.cp-subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.45rem; letter-spacing: 0.3em;
+  color: var(--ghost);
+  margin-top: 4px; text-transform: uppercase;
+}
+
+.cp-tabs {
+  display: flex; flex-shrink: 0;
+  border-bottom: 1px solid var(--glass-border);
+}
+.cp-tab {
+  flex: 1; padding: 12px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.52rem; letter-spacing: 0.2em;
+  color: var(--ghost); text-transform: uppercase;
+  text-align: center; cursor: pointer;
+  border-bottom: 1px solid transparent;
+  transition: all 0.2s; margin-bottom: -1px;
+}
+.cp-tab.active { color: var(--amber); border-bottom-color: var(--amber); }
+.cp-tab:hover:not(.active) { color: var(--muted); }
+
+.cp-body {
+  flex: 1; overflow-y: auto; padding: 22px 24px;
+  scrollbar-width: none;
+}
+.cp-body::-webkit-scrollbar { display: none; }
+
+.cp-section { margin-bottom: 30px; }
+.cp-sec-title {
+  font-family: var(--font-mono);
+  font-size: 0.48rem; letter-spacing: 0.3em;
+  color: var(--ghost); text-transform: uppercase;
+  margin-bottom: 16px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+/* Sliders */
+.sl-row { margin-bottom: 20px; }
+.sl-head {
+  display: flex; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.sl-name {
+  font-family: var(--font-head);
+  font-size: 0.65rem; font-weight: 600;
+  letter-spacing: 0.12em; color: var(--white);
+  text-transform: uppercase;
+}
+.sl-val {
+  font-family: var(--font-mono);
+  font-size: 0.62rem; color: var(--amber);
+  letter-spacing: 0.1em;
+}
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%; height: 2px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 2px; outline: none;
+  position: relative;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--amber) var(--pct, 50%), rgba(255,255,255,0.12) var(--pct, 50%));
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--white); cursor: pointer;
+  margin-top: -4.5px;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.8), 0 0 10px rgba(232,160,64,0.6);
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+input[type=range]::-webkit-slider-thumb:hover {
+  transform: scale(1.3);
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.8), 0 0 16px var(--amber);
+}
+input[type=range]::-moz-range-thumb {
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--white); cursor: pointer; border: none;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.8), 0 0 10px rgba(232,160,64,0.6);
+}
+
+/* Toggles */
+.toggle-row {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px; padding: 8px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.02);
+  transition: background 0.2s;
+}
+.toggle-row:hover { background: rgba(255,255,255,0.04); }
+.toggle-name {
+  font-family: var(--font-head);
+  font-size: 0.62rem; font-weight: 600;
+  letter-spacing: 0.12em; color: var(--muted);
+  text-transform: uppercase;
+}
+.toggle-sub { font-family: var(--font-mono); font-size: 0.42rem; color: var(--ghost); letter-spacing: 0.1em; }
+.switch { position: relative; width: 34px; height: 18px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch-track {
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,0.12); border-radius: 9px;
+  cursor: pointer; transition: background 0.2s;
+}
+.switch-track::before {
+  content: '';
+  position: absolute; left: 2px; top: 2px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: rgba(255,255,255,0.5);
+  transition: transform 0.2s, background 0.2s;
+}
+.switch input:checked + .switch-track { background: rgba(232, 160, 64, 0.5); }
+.switch input:checked + .switch-track::before {
+  transform: translateX(16px);
+  background: var(--amber);
+  box-shadow: 0 0 8px var(--amber);
+}
+
+/* Tab pane visibility */
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* Color grading */
+.color-section { display: flex; flex-direction: column; gap: 12px; }
+.color-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.02);
+}
+.color-swatch {
+  width: 32px; height: 32px; border-radius: 4px;
+  flex-shrink: 0; border: 1px solid rgba(255,255,255,0.1);
+}
+.color-info { flex: 1; }
+.color-name {
+  font-family: var(--font-head);
+  font-size: 0.58rem; font-weight: 600;
+  letter-spacing: 0.12em; color: var(--muted);
+  text-transform: uppercase;
+}
+.color-desc { font-family: var(--font-mono); font-size: 0.42rem; color: var(--ghost); letter-spacing: 0.1em; }
+.color-pick { cursor: pointer; background: none; border: none; padding: 0; }
+.color-pick input[type=color] {
+  width: 24px; height: 24px; cursor: pointer;
+  border: 1px solid var(--glass-border); border-radius: 3px;
+  padding: 0; background: none;
+}
+
+/* Buttons in panel */
+.cp-btn-row { display: flex; gap: 12px; }
+.cp-btn {
+  flex: 1; padding: 11px; border: 1px solid var(--glass-border);
+  border-radius: 6px; background: rgba(255,255,255,0.04);
+  color: var(--muted); font-family: var(--font-mono);
+  font-size: 0.55rem; letter-spacing: 0.2em;
+  cursor: pointer; transition: all 0.2s;
+  text-transform: uppercase;
+}
+.cp-btn:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color: var(--white); }
+.cp-btn.accent { border-color: var(--amber-dim); color: var(--amber); background: var(--amber-glow); }
+.cp-btn.accent:hover { background: rgba(232, 160, 64, 0.2); border-color: var(--amber); }
+
+/* ─── TOGGLE BUTTON ───────────────────────────────────────── */
+#ctrl-toggle {
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 28px; height: 56px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px;
+  cursor: pointer; pointer-events: auto;
+  backdrop-filter: blur(24px);
+  transition: background 0.2s, left 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+  z-index: 102;
+}
+#ctrl-toggle:hover { background: rgba(10,10,16,0.9); }
+#ctrl-toggle .chev { width: 8px; height: 8px; border: 1.5px solid var(--muted); border-left: none; border-top: none; transform: rotate(135deg); transition: transform 0.3s; }
+#ctrl-panel.open ~ #ctrl-toggle { left: 340px; }
+#ctrl-panel.open ~ #ctrl-toggle .chev { transform: rotate(-45deg); }
+
+/* ─── RIGHT PANEL (LIVE STATS) ───────────────────────────── */
+#stats-panel {
+  position: absolute;
+  right: -350px; top: 90px; bottom: 64px;
+  width: 320px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px 0 0 12px;
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  display: flex; flex-direction: column;
+  transition: right 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+  overflow: hidden;
+  pointer-events: auto;
+  box-shadow: -4px 0 40px rgba(0,0,0,0.6);
+  z-index: 101;
+}
+#stats-panel.open { right: 0; }
+
+.sp-header {
+  padding: 24px 24px 18px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+.sp-title {
+  font-family: var(--font-head);
+  font-size: 0.85rem; font-weight: 700;
+  letter-spacing: 0.3em; color: var(--white);
+  text-transform: uppercase;
+  display: flex; align-items: center; gap: 10px;
+}
+.sp-subtitle { font-family: var(--font-mono); font-size: 0.45rem; color: var(--ghost); letter-spacing: 0.3em; margin-top: 4px; }
+
+.sp-body {
+  flex: 1; overflow-y: auto; padding: 20px 24px;
+  scrollbar-width: none;
+}
+.sp-body::-webkit-scrollbar { display: none; }
+
+/* Stat rows */
+.stat-group { margin-bottom: 24px; }
+.sg-title {
+  font-family: var(--font-mono);
+  font-size: 0.48rem; letter-spacing: 0.3em;
+  color: var(--ghost); text-transform: uppercase;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--glass-border);
+}
+.stat-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 10px; padding: 2px 0;
+}
+.stat-key {
+  font-family: var(--font-mono);
+  font-size: 0.58rem; letter-spacing: 0.12em;
+  color: var(--muted); text-transform: uppercase;
+}
+.stat-val {
+  font-family: var(--font-mono);
+  font-size: 0.72rem; font-weight: 500;
+  color: var(--amber); letter-spacing: 0.08em;
+}
+.stat-val.highlight {
+  color: var(--white);
+  font-size: 0.95rem; font-weight: 600;
+}
+.stat-unit { font-size: 0.45rem; color: var(--ghost); margin-left: 4px; }
+
+/* Gravity bar */
+.grav-bar-wrap {
+  margin: 6px 0 14px;
+  height: 3px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px; overflow: hidden;
+}
+.grav-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #e8a040, #ff6030, #ff2060);
+  transition: width 0.5s ease;
+}
+
+/* Hawking spectrum mini */
+.spectrum-viz {
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  padding: 10px;
+  background: rgba(0,0,0,0.3);
+  margin-bottom: 14px;
+}
+.spec-title { font-family: var(--font-mono); font-size: 0.38rem; letter-spacing: 0.2em; color: var(--ghost); margin-bottom: 8px; }
+.spec-canvas { width: 100%; height: 40px; display: block; }
+
+/* Stats toggle */
+#stats-toggle {
+  position: absolute;
+  right: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 28px; height: 56px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px;
+  cursor: pointer; pointer-events: auto;
+  backdrop-filter: blur(24px);
+  transition: background 0.2s, right 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+  z-index: 102;
+}
+#stats-toggle:hover { background: rgba(10,10,16,0.9); }
+#stats-toggle .chev-r { width: 8px; height: 8px; border: 1.5px solid var(--muted); border-left: none; border-top: none; transform: rotate(-45deg); transition: transform 0.3s; }
+#stats-panel.open ~ #stats-toggle { right: 320px; }
+#stats-panel.open ~ #stats-toggle .chev-r { transform: rotate(135deg); }
+
+/* ─── INFO PANEL (SLIDE UP) ──────────────────────────────── */
+#info-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(28px) saturate(1.2);
+  -webkit-backdrop-filter: blur(28px) saturate(1.2);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.4s ease;
+  display: flex; align-items: center; justify-content: center;
+}
+#info-overlay.active { opacity: 1; pointer-events: auto; }
+
+.info-box {
+  width: min(900px, 92vw);
+  max-height: 85vh;
+  background: rgba(4, 4, 12, 0.65);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  display: flex; flex-direction: column;
+  transform: translateY(30px) scale(0.97);
+  transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+#info-overlay.active .info-box { transform: translateY(0) scale(1); }
+
+.ib-header {
+  padding: 28px 36px 22px;
+  border-bottom: 1px solid var(--glass-border);
+  display: flex; justify-content: space-between; align-items: flex-start;
+  flex-shrink: 0;
+}
+.ib-title-group { display: flex; flex-direction: column; gap: 4px; }
+.ib-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.55rem; letter-spacing: 0.4em;
+  color: var(--amber); text-transform: uppercase;
+}
+.ib-title {
+  font-family: var(--font-head);
+  font-size: 2.2rem; font-weight: 800;
+  letter-spacing: 0.12em; color: var(--white);
+  text-transform: uppercase;
+}
+.ib-subtitle {
+  font-family: var(--font-serif);
+  font-size: 1.2rem; font-style: italic;
+  color: var(--muted); letter-spacing: 0.05em;
+}
+.ib-close {
+  font-family: var(--font-mono);
+  font-size: 0.55rem; letter-spacing: 0.2em;
+  padding: 8px 18px;
+  border: 1px solid var(--glass-border);
+  border-radius: 4px; cursor: pointer;
+  color: var(--ghost); text-transform: uppercase;
+  background: rgba(255,255,255,0.04);
+  transition: all 0.2s;
+}
+.ib-close:hover { color: var(--white); border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.08); }
+
+.ib-body {
+  overflow-y: auto; padding: 36px 40px;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+.ib-body::-webkit-scrollbar { width: 4px; }
+.ib-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+.ib-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; margin-bottom: 40px; }
+@media (max-width: 640px) { .ib-grid { grid-template-columns: 1fr; } }
+
+.ib-col-title {
+  font-family: var(--font-head);
+  font-size: 0.75rem; font-weight: 700;
+  letter-spacing: 0.25em; color: var(--amber);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.ib-col-title::after { content: ''; flex: 1; height: 1px; background: var(--glass-border); }
+
+.ib-para {
+  font-family: var(--font-serif);
+  font-size: 1.15rem; line-height: 1.7;
+  color: rgba(242, 237, 232, 0.88);
+  margin-bottom: 18px;
+}
+.ib-math {
+  font-family: var(--font-mono);
+  font-size: 0.75rem; letter-spacing: 0.05em;
+  color: #c8a870;
+  background: rgba(232,160,64,0.08);
+  border: 1px solid rgba(232,160,64,0.2);
+  border-radius: 6px; padding: 12px 16px;
+  margin-bottom: 16px; line-height: 1.6;
+}
+.ib-fact-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--glass-border);
+}
+.ib-fact-row:last-child { border-bottom: none; }
+.ib-fact-key { font-family: var(--font-mono); font-size: 0.55rem; color: var(--ghost); letter-spacing: 0.1em; text-transform: uppercase; }
+.ib-fact-val { font-family: var(--font-mono); font-size: 0.7rem; color: var(--amber); font-weight: 500; letter-spacing: 0.05em; }
+
+.ib-divider { height: 1px; background: var(--glass-border); margin: 28px 0; }
+
+/* ─── TOAST ───────────────────────────────────────────────── */
+#toast {
+  position: fixed; bottom: 56px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(10,10,16,0.95);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  padding: 9px 22px;
+  font-family: var(--font-mono);
+  font-size: 0.5rem; letter-spacing: 0.2em;
+  color: var(--white);
+  opacity: 0; pointer-events: none;
+  transition: all 0.3s ease;
+  z-index: 200;
+  backdrop-filter: blur(12px);
+}
+#toast.show {
+  opacity: 1; transform: translateX(-50%) translateY(0);
+}
+
+/* ─── INFO BTN ────────────────────────────────────────────── */
+#info-btn {
+  position: absolute;
+  bottom: 56px; right: 24px;
+  pointer-events: auto;
+  font-family: var(--font-mono);
+  font-size: 0.42rem; letter-spacing: 0.25em;
+  padding: 8px 16px;
+  border: 1px solid var(--glass-border);
+  border-radius: 4px;
+  background: var(--glass-bg);
+  color: var(--muted); cursor: pointer;
+  text-transform: uppercase;
+  backdrop-filter: blur(12px);
+  transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+  z-index: 10;
+}
+#info-btn:hover { color: var(--amber); border-color: var(--amber-dim); background: var(--amber-glow); }
+
+/* Hide info button when stats panel is open */
+#stats-panel.open ~ #info-btn {
+  opacity: 0;
+  transform: translateX(30px) scale(0.9);
+  pointer-events: none;
+}
+
+/* ─── RETICLE ─────────────────────────────────────────────── */
+#reticle {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px; height: 48px;
+  opacity: 0.2;
+  pointer-events: none;
+}
+.ret-ring {
+  position: absolute; inset: 0;
+  border: 1px solid var(--white);
+  border-radius: 50%;
+}
+.ret-cross {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+}
+.ret-h { position: absolute; top: 0; left: -10px; width: 20px; height: 1px; background: var(--white); }
+.ret-v { position: absolute; left: 0; top: -10px; width: 1px; height: 20px; background: var(--white); }
+</style>
+</head>
+<body>
+
+<!-- Loader -->
+<div id="loader">
+  <div class="loader-name">GARGANTUA</div>
+  <div class="loader-sub">Kerr Black Hole Observatory · Interstellar</div>
+  <div class="loader-bar-wrap"><div class="loader-bar" id="lbar"></div></div>
+  <div class="loader-status" id="lstatus">Initializing WebGL2 Geodesic Engine…</div>
+</div>
+
+<!-- Main canvas -->
+<canvas id="c"></canvas>
+
+<!-- HUD -->
+<div id="hud">
+  <!-- Corner brackets -->
+  <div class="corner corner-tl"></div>
+  <div class="corner corner-tr"></div>
+  <div class="corner corner-bl"></div>
+  <div class="corner corner-br"></div>
+
+  <!-- Top bar -->
+  <div id="topbar">
+    <div class="tb-brand">
+      <div class="tb-name">GARGANTUA</div>
+      <div class="tb-tagline">Kerr Black Hole · Spin Parameter a* = 0.998</div>
+    </div>
+    <div class="tb-tickers">
+      <div class="ticker-item"><div class="t-label">Schwarzschild Radius</div><div class="t-value" id="tk-rs">—</div></div>
+      <div class="ticker-item"><div class="t-label">Photon Sphere</div><div class="t-value" id="tk-pr">—</div></div>
+      <div class="ticker-item"><div class="t-label">ISCO</div><div class="t-value" id="tk-isco">—</div></div>
+      <div class="ticker-item"><div class="t-label">Disk Temp</div><div class="t-value" id="tk-tmp">—</div></div>
+      <div class="ticker-item"><div class="t-label">Time Dilation</div><div class="t-value" id="tk-td">—</div></div>
+    </div>
+    <div class="tb-right">
+      <div class="status-indicator">
+        <div class="pulse-dot"></div>
+        SIMULATION ACTIVE
+      </div>
+      <div class="fps-display" id="fps-el">— FPS</div>
+    </div>
+  </div>
+
+  <!-- Bottom bar -->
+  <div id="botbar">
+    <div id="social-dock"> 
+      <a href="https://rhanportfolio.page.gd/" target="_blank" class="social-btn" title="Website"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg></a> 
+      <a href="https://github.com/Rhanicko" target="_blank" class="social-btn" title="GitHub"><svg viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" /></svg></a> 
+      <a href="https://facebook.com/Pyo0n" target="_blank" class="social-btn" title="Facebook"><svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" /></svg></a> 
+      <a href="https://instagram.com/pyo0n.1" target="_blank" class="social-btn" title="Instagram"><svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" /></svg></a> 
+    </div>
+    <div class="bb-item"><div class="bb-dot"></div>MASS: <span id="bb-mass" style="color:var(--amber)">—</span></div>
+    <div class="bb-item"><div class="bb-dot"></div>SPIN: <span id="bb-spin" style="color:var(--amber)">—</span></div>
+    <div class="bb-item"><div class="bb-dot"></div>DIST: <span id="bb-dst" style="color:var(--amber)">—</span></div>
+    <div class="bb-coords" id="bb-coords">YAW 0.00 · TILT 0.17</div>
+    <div style="margin-left:auto; font-family:var(--font-mono); font-size:0.4rem; color:var(--ghost); letter-spacing:0.2em;">
+      H — TOGGLE UI &nbsp;·&nbsp; R — RESET CAMERA &nbsp;·&nbsp; DRAG — ORBIT &nbsp;·&nbsp; SCROLL — ZOOM
+    </div>
+  </div>
+
+  <!-- Left control panel -->
+  <div id="ctrl-panel">
+    <div class="cp-header">
+      <div class="cp-title"><div class="cp-title-dot"></div>Black Hole Parameters</div>
+      <div class="cp-subtitle">Kerr Metric Configuration</div>
+    </div>
+    <div class="cp-tabs">
+      <div class="cp-tab active" data-tab="physics">Physics</div>
+      <div class="cp-tab" data-tab="camera">Camera</div>
+      <div class="cp-tab" data-tab="visual">Visual</div>
+      <div class="cp-tab" data-tab="fx">FX</div>
+    </div>
+    <div class="cp-body">
+
+      <!-- PHYSICS TAB -->
+      <div class="tab-pane active" id="tab-physics">
+        <div class="cp-section">
+          <div class="cp-sec-title">Kerr Parameters</div>
+
+          <div class="sl-row">
+            <div class="sl-head"><span class="sl-name">Mass</span><span class="sl-val"><span id="vmas">1.40</span> M☉</span></div>
+            <input type="range" id="rmas" min="0.5" max="4" step="0.01" value="1.4">
+          </div>
+          <div class="sl-row">
+            <div class="sl-head"><span class="sl-name">Spin (a*)</span><span class="sl-val"><span id="vspi">0.998</span></span></div>
+            <input type="range" id="rspi" min="0" max="0.9995" step="0.001" value="0.998">
+          </div>
+          <div class="sl-row">
+            <div class="sl-head"><span class="sl-name">Horizon Glow</span><span class="sl-val"><span id="vhgl">1.20</span></span></div>
+            <input type="range" id="rhgl" min="0" max="3" step="0.05" value="1.2">
+          </div>
+        </div>
+
+        <div class="cp-section">
+          <div class="cp-sec-title">Accretion Disk</div>
+          <div class="sl-row">
+            <div class="sl-head"><span class="sl-name">Outer Radius</span><span class="sl-val"><span id="vdsk">14.0</span> M</span></div>
+            <input type="range" id="rdsk" min="4" max="28" step="0.5" value="14">
+          </div>
+          <div class="sl-row">
+            <div class="sl-head"><span class="sl-name">Thickness</span><span class="sl-val"><span id="vthk">0.060</span></span></div>
+            <input type="range" id="rthk" min="0.01" max="0.25" step="0.005" value="0.06">
+          </div>
+          <div class="sl-row">
+            <div class="sl-head"><span class="sl-name">Density</span><span class="sl-val"><span id="vden">1.6</span></span></div>
+            <input type="range" id="rden" min="0.3" max="4" step="0.1" value="1.6">
+          </div>
+          <div class="sl-row">
+            <div class="sl-head"><span class="sl-name">Rotation</span><span class="sl-val"><span id="vrot">1.00</span></span></div>
+            <input type="range" id="rrot" min="0" max="3" step="0.05" value="1.0">
+          </div>
+          <div class="sl-row">
+            <div class="sl-head"><span class="sl-name">Turbulence</span><span class="sl-val"><span id="vtrb">0.70</span></span></div>
+            <input type="range" id="rtrb" min="0.1" max="2" step="0.05" value="0.7">
+          </div>
+        </div>
+
+        <div class="cp-btn-row">
+          <button class="cp-btn accent" id="preset-gargantua">Gargantua Default</button>
+          <button class="cp-btn" id="btn-reset-view-main">Reset View</button>
+        </div>
+      </div>
+
+      <!-- CAMERA TAB -->
+      <div class="tab-pane" id="tab-camera">
+        <div class="cp-section">
+          <div class="cp-sec-title">Viewport</div>
+          <div class="sl-row">
+            <div class="sl-head"><span class="sl-name">Distance</span><span class="sl-val"><span id="vdst">18</span> M</span></div>
+            <input type="range" id="rdst" min="4" max="40" step="0.5" value="18">
+          </div>
+          <div class="sl-row">
+            <div class="sl-head"><span class="sl-name">Tilt</span><span class="sl-val"><span id="vtlt">0.17</span> rad</span></div>
+            <input type="range" id="rtlt" min="-1.55" max="1.55" step="0.01" value="0.17">
+          </div>
+          <div class="sl-row">
+            <div class="sl-head"><span class="sl-name">Field of View</span><span class="sl-val"><span id="vfov">1.00</span></span></div>
+            <input type="range" id="rfov" min="0.5" max="2" step="0.05" value="1.0">
+          </div>
+          <div class="sl-row">
+            <div class="sl-head"><span class="sl-name">Auto-Orbit Speed</span><span class="sl-val"><span id="vorb">0.018</span></span></div>
+            <input type="range" id="rorb" min="0" max="0.08" step="0.001" value="0.018">
+          </div>
+        </div>
+        <div class="cp-section">
+          <div class="cp-sec-title">Ray Quality</div>
+          <div class="sl-row">
+            <div class="sl-head"><span class="sl-name">Max Steps</span><span class="sl-val"><span id="vstp">700</span></span></div>
+            <input type="range" id="rstp" min="100" max="900" step="50" value="700">
+          </div>
+        </div>
+        <div class="cp-btn-row">
+          <button class="cp-btn accent" id="btn-cam-reset">Reset Camera</button>
+        </div>
+      </div>
+
+      <!-- VISUAL TAB -->
+      <div class="tab-pane" id="tab-visual">
+        <div class="cp-section">
+          <div class="cp-sec-title">Tone Mapping</div>
+          <div class="sl-row">
+            <div class="sl-head"><span class="sl-name">Exposure</span><span class="sl-val"><span id="vexp">1.5</span></span></div>
+            <input type="range" id="rexp" min="0.3" max="4" step="0.1" value="1.5">
+          </div>
+        </div>
+        <div class="cp-section">
+          <div class="cp-sec-title">Disk Color Grading</div>
+          <div class="color-section">
+            <div class="color-row">
+              <div class="color-swatch" id="sw-outer" style="background:#c06010"></div>
+              <div class="color-info">
+                <div class="color-name">Outer Disk</div>
+                <div class="color-desc">Cool periphery</div>
+              </div>
+              <label class="color-pick"><input type="color" id="pc-outer" value="#c06010"></label>
+            </div>
+            <div class="color-row">
+              <div class="color-swatch" id="sw-mid" style="background:#ff8020"></div>
+              <div class="color-info">
+                <div class="color-name">Mid Disk</div>
+                <div class="color-desc">Plasma transition</div>
+              </div>
+              <label class="color-pick"><input type="color" id="pc-mid" value="#ff8020"></label>
+            </div>
+            <div class="color-row">
+              <div class="color-swatch" id="sw-inner" style="background:#ffe0a0"></div>
+              <div class="color-info">
+                <div class="color-name">Inner Disk</div>
+                <div class="color-desc">ISCO region · white-hot</div>
+              </div>
+              <label class="color-pick"><input type="color" id="pc-inner" value="#ffe0a0"></label>
+            </div>
+            <div class="color-row">
+              <div class="color-swatch" id="sw-corona" style="background:#60a0ff"></div>
+              <div class="color-info">
+                <div class="color-name">Corona / Photon Ring</div>
+                <div class="color-desc">High-energy accretion</div>
+              </div>
+              <label class="color-pick"><input type="color" id="pc-corona" value="#60a0ff"></label>
+            </div>
+            <div class="color-row">
+              <div class="color-swatch" id="sw-horizon" style="background:#000000"></div>
+              <div class="color-info">
+                <div class="color-name">Event Horizon</div>
+                <div class="color-desc">Shadow & Glow color</div>
+              </div>
+              <label class="color-pick"><input type="color" id="pc-horizon" value="#000000"></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FX TAB -->
+      <div class="tab-pane" id="tab-fx">
+        <div class="cp-section">
+          <div class="cp-sec-title">Physics Effects</div>
+          <div class="toggle-row">
+            <div><div class="toggle-name">Gravitational Lensing</div><div class="toggle-sub">Kerr geodesic deflection</div></div>
+            <label class="switch"><input type="checkbox" id="tlns" checked><div class="switch-track"></div></label>
+          </div>
+          <div class="toggle-row">
+            <div><div class="toggle-name">Relativistic Doppler</div><div class="toggle-sub">Blue/red shift · g⁴ factor</div></div>
+            <label class="switch"><input type="checkbox" id="tdop" checked><div class="switch-track"></div></label>
+          </div>
+          <div class="toggle-row">
+            <div><div class="toggle-name">Gravitational Redshift</div><div class="toggle-sub">√g_tt metric factor</div></div>
+            <label class="switch"><input type="checkbox" id="tred" checked><div class="switch-track"></div></label>
+          </div>
+          <div class="toggle-row">
+            <div><div class="toggle-name">Photon Ring (n≥2)</div><div class="toggle-sub">Multi-orbit light paths</div></div>
+            <label class="switch"><input type="checkbox" id="trng" checked><div class="switch-track"></div></label>
+          </div>
+          <div class="toggle-row">
+            <div><div class="toggle-name">Disk Corona</div><div class="toggle-sub">Hot plasma above disk plane</div></div>
+            <label class="switch"><input type="checkbox" id="tcor" checked><div class="switch-track"></div></label>
+          </div>
+        </div>
+        <div class="cp-section">
+          <div class="cp-sec-title">Render FX</div>
+          <div class="toggle-row">
+            <div><div class="toggle-name">Starfield</div><div class="toggle-sub">3-tier stellar background</div></div>
+            <label class="switch"><input type="checkbox" id="tstr" checked><div class="switch-track"></div></label>
+          </div>
+          <div class="toggle-row">
+            <div><div class="toggle-name">Bloom & Lens Flare</div><div class="toggle-sub">ACES filmic post-processing</div></div>
+            <label class="switch"><input type="checkbox" id="tblm" checked><div class="switch-track"></div></label>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <div id="ctrl-toggle"><div class="chev"></div></div>
+
+  <!-- Right stats panel -->
+  <div id="stats-panel">
+    <div class="sp-header">
+      <div class="sp-title"><div class="cp-title-dot"></div>Live Observatory</div>
+      <div class="sp-subtitle">Real-time Kerr Metric</div>
+    </div>
+    <div class="sp-body">
+
+      <div class="stat-group">
+        <div class="sg-title">Core Parameters</div>
+        <div class="stat-row">
+          <span class="stat-key">Mass M</span>
+          <span class="stat-val highlight" id="sm-mass">—<span class="stat-unit">M☉</span></span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-key">Spin a*</span>
+          <span class="stat-val highlight" id="sm-spin">—</span>
+        </div>
+      </div>
+
+      <div class="stat-group">
+        <div class="sg-title">Geometry</div>
+        <div class="stat-row">
+          <span class="stat-key">Schwarzschild Radius</span>
+          <span class="stat-val" id="sm-rs">—<span class="stat-unit">M</span></span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-key">Event Horizon r+</span>
+          <span class="stat-val" id="sm-rh">—<span class="stat-unit">M</span></span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-key">Ergosphere r_erg</span>
+          <span class="stat-val" id="sm-erg">—<span class="stat-unit">M</span></span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-key">Photon Sphere</span>
+          <span class="stat-val" id="sm-pr">—<span class="stat-unit">M</span></span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-key">ISCO</span>
+          <span class="stat-val" id="sm-isco">—<span class="stat-unit">M</span></span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-key">Disk Outer Radius</span>
+          <span class="stat-val" id="sm-rout">—<span class="stat-unit">M</span></span>
+        </div>
+      </div>
+
+      <div class="stat-group">
+        <div class="sg-title">Thermodynamics</div>
+        <div class="stat-row">
+          <span class="stat-key">Disk Peak Temp</span>
+          <span class="stat-val" id="sm-temp">—</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-key">Hawking T_H</span>
+          <span class="stat-val" id="sm-th">—<span class="stat-unit">K</span></span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-key">Luminosity</span>
+          <span class="stat-val" id="sm-lum">—<span class="stat-unit">L_Edd</span></span>
+        </div>
+      </div>
+
+      <div class="stat-group">
+        <div class="sg-title">Gravitational Strength</div>
+        <div class="grav-bar-wrap">
+          <div class="grav-bar-fill" id="grav-bar" style="width:0%"></div>
+        </div>
+        <div class="stat-row">
+          <span class="stat-key">Time Dilation γ</span>
+          <span class="stat-val" id="sm-td">—</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-key">Surface Gravity κ</span>
+          <span class="stat-val" id="sm-kappa">—</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-key">Angular Momentum J</span>
+          <span class="stat-val" id="sm-J">—<span class="stat-unit">GM²/c</span></span>
+        </div>
+      </div>
+
+      <div class="spectrum-viz">
+        <div class="spec-title">HAWKING RADIATION SPECTRUM (ILLUSTRATIVE)</div>
+        <canvas class="spec-canvas" id="spec-canvas"></canvas>
+      </div>
+
+      <div class="stat-group">
+        <div class="sg-title">Camera</div>
+        <div class="stat-row"><span class="stat-key">Distance</span><span class="stat-val" id="sm-dst">—<span class="stat-unit">M</span></span></div>
+        <div class="stat-row"><span class="stat-key">Tilt</span><span class="stat-val" id="sm-tlt">—<span class="stat-unit">rad</span></span></div>
+        <div class="stat-row"><span class="stat-key">Yaw</span><span class="stat-val" id="sm-yaw">—<span class="stat-unit">rad</span></span></div>
+      </div>
+
+    </div>
+  </div>
+  <div id="stats-toggle"><div class="chev-r"></div></div>
+
+  <!-- Reticle -->
+  <div id="reticle">
+    <div class="ret-ring"></div>
+    <div class="ret-cross">
+      <div class="ret-h"></div>
+      <div class="ret-v"></div>
+    </div>
+  </div>
+
+  <!-- Info button -->
+  <div id="info-btn">Scientific Data</div>
+</div>
+
+<!-- Info overlay -->
+<div id="info-overlay">
+  <div class="info-box">
+    <div class="ib-header">
+      <div class="ib-title-group">
+        <div class="ib-kicker">Interstellar / General Relativity</div>
+        <div class="ib-title">GARGANTUA</div>
+        <div class="ib-subtitle">A supermassive Kerr black hole at extreme spin</div>
+      </div>
+      <div class="ib-close" id="info-close">Close ×</div>
+    </div>
+    <div class="ib-body">
+      <div class="ib-grid">
+        <div>
+          <div class="ib-col-title">The Fictional Black Hole</div>
+          <div class="ib-para">Gargantua is the colossal black hole at the center of Christopher Nolan's 2014 film <em>Interstellar</em>. It orbits a star in a distant galaxy and is accompanied by the planet Miller, which sits so close to its event horizon that time dilation makes one hour on its surface equal to seven years on Earth.</div>
+          <div class="ib-para">The visual effects were created by the Double Negative team in close collaboration with physicist Kip Thorne, who wrote the scientific equations that drove the rendering software DNGR. The result was the most physically accurate depiction of a black hole ever shown in cinema.</div>
+          <div class="ib-para">Gargantua has a mass approximately 100 million times that of our Sun, a spin parameter of a* ≈ 0.998 (near maximum Kerr spin), and an accretion disk inclined for dramatic cinematic effect.</div>
+        </div>
+        <div>
+          <div class="ib-col-title">Real-World Physics</div>
+          <div class="ib-para">A Kerr black hole is described by the Kerr metric — a solution to Einstein's field equations for a rotating mass. Unlike a Schwarzschild black hole, it possesses an <em>ergosphere</em>: a region outside the event horizon where spacetime itself is dragged in the direction of rotation.</div>
+          <div class="ib-math">r+ = M + √(M² − a²)<br>a = spin parameter (0 ≤ a ≤ M)</div>
+          <div class="ib-para">The innermost stable circular orbit (ISCO) shrinks dramatically with spin: for a* = 0.998 it reaches r_ISCO ≈ 1.24M, compared to 6M for a non-rotating black hole. This allows the accretion disk to extend far closer to the horizon, extracting enormous gravitational energy.</div>
+          <div class="ib-math">T_Hawking = ℏc³ / (8πGMk_B)<br>T_disk ∝ (M/r)^(3/4) [Novikov-Thorne]</div>
+        </div>
+      </div>
+
+      <div class="ib-divider"></div>
+
+      <div class="ib-col-title" style="margin-bottom:14px">Gargantua vs Observed Black Holes</div>
+      <div class="ib-grid">
+        <div>
+          <div class="ib-fact-row"><span class="ib-fact-key">Gargantua (film)</span><span class="ib-fact-val">~100 million M☉</span></div>
+          <div class="ib-fact-row"><span class="ib-fact-key">M87* (first image, 2019)</span><span class="ib-fact-val">6.5 billion M☉</span></div>
+          <div class="ib-fact-row"><span class="ib-fact-key">Sgr A* (Milky Way)</span><span class="ib-fact-val">4.3 million M☉</span></div>
+          <div class="ib-fact-row"><span class="ib-fact-key">TON 618 (quasar)</span><span class="ib-fact-val">66 billion M☉</span></div>
+        </div>
+        <div>
+          <div class="ib-fact-row"><span class="ib-fact-key">Gargantua spin a*</span><span class="ib-fact-val">0.998 (near-max Kerr)</span></div>
+          <div class="ib-fact-row"><span class="ib-fact-key">Photon ring radius</span><span class="ib-fact-val">1.5 R_S (equatorial)</span></div>
+          <div class="ib-fact-row"><span class="ib-fact-key">Lensing mechanism</span><span class="ib-fact-val">Kerr geodesics</span></div>
+          <div class="ib-fact-row"><span class="ib-fact-key">Disk model</span><span class="ib-fact-val">Novikov-Thorne (NT)</span></div>
+        </div>
+      </div>
+
+      <div class="ib-divider"></div>
+
+      <div class="ib-col-title" style="margin-bottom:14px">This Simulation</div>
+      <div class="ib-para">The rendering uses a WebGL2 ray-marching approach that numerically integrates null geodesics in the Kerr metric. Each screen pixel casts a photon ray that is deflected by the curved spacetime. When the ray passes through the accretion disk plane, a Novikov-Thorne temperature profile and fractional Brownian motion (fBm) noise generate the turbulent plasma structure. Relativistic Doppler boosting (g⁴ beaming), gravitational redshift (√g_tt), and frame-dragging (Lense-Thirring) corrections are applied per sample. The final color is tone-mapped with the ACES filmic curve and film grain is added for cinematic texture.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+// ════════════════════════════════════════════════════════════
+//  LOADER ANIMATION
+// ════════════════════════════════════════════════════════════
+const loader = document.getElementById('loader');
+const lbar   = document.getElementById('lbar');
+const lstatus= document.getElementById('lstatus');
+const msgs   = [
+  'Calibrating Kerr geodesic tracer…',
+  'Loading accretion disk physics…',
+  'Compiling GLSL ray marcher…',
+  'Initializing Novikov-Thorne model…',
+  'Warming up event horizon…',
+];
+let mi = 0;
+const msgInterval = setInterval(() => {
+  if (mi < msgs.length) { lstatus.textContent = msgs[mi++]; }
+}, 350);
+setTimeout(() => lbar.style.width = '100%', 80);
+
+// ════════════════════════════════════════════════════════════
+//  WEBGL2 SETUP
+// ════════════════════════════════════════════════════════════
+const cv = document.getElementById('c');
+const gl = cv.getContext('webgl2', { antialias: false, powerPreference: 'high-performance' });
+if (!gl) {
+  document.body.innerHTML = '<div style="color:#e8a040;padding:80px;font-family:monospace;font-size:1.2rem;text-align:center">WebGL2 is required.<br>Please use Chrome, Firefox, or Edge (latest).</div>';
+  return;
+}
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width  = Math.floor(window.innerWidth  * dpr);
+  cv.height = Math.floor(window.innerHeight * dpr);
+  gl.viewport(0, 0, cv.width, cv.height);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ════════════════════════════════════════════════════════════
+//  SHADERS
+// ════════════════════════════════════════════════════════════
+const VS = `#version 300 es
+in vec4 a;
+void main(){ gl_Position = a; }`;
+
+const FS = `#version 300 es
+precision highp float;
+out vec4 frag;
+
+uniform vec2  uRes;
+uniform float uTime;
+uniform float uMass;
+uniform float uSpin;
+uniform float uDisk;
+uniform float uThk;
+uniform float uDen;
+uniform float uRot;
+uniform float uTrb;
+uniform float uTlt;
+uniform float uYaw;
+uniform float uDst;
+uniform float uFov;
+uniform float uOrb;
+uniform float uHgl;
+uniform float uExp;
+uniform int   uStp;
+uniform float uDop;
+uniform float uRng;
+uniform float uLns;
+uniform float uRed;
+uniform float uBlm;
+uniform float uStr;
+uniform float uCor;
+uniform vec3  uCo, uCm, uCi, uCc, uCh;
+
+mat2 rot2(float a){ float s=sin(a),c=cos(a); return mat2(c,-s,s,c); }
+
+// ── GPU integer hash (no trig) ──────────────────────────────
+uint uhash(uint n){
+  n=(n^61u)^(n>>16u); n*=9u; n=n^(n>>4u);
+  n*=0x27d4eb2du; n=n^(n>>15u); return n;
+}
+float fhash(uint n){ return float(uhash(n))/4294967295.0; }
+float h31(vec3 p){
+  uvec3 q=uvec3(ivec3(floor(p)))*uvec3(1597334673u,3812015801u,2798796415u);
+  return float((q.x^q.y^q.z)*1597334673u)/4294967295.0;
+}
+
+// ── Value noise (cubic interp) ──────────────────────────────
+float vnoise(vec3 p){
+  vec3 i=floor(p), f=fract(p);
+  vec3 u=f*f*(3.0-2.0*f);
+  float a=h31(i),b=h31(i+vec3(1,0,0)),c=h31(i+vec3(0,1,0)),d=h31(i+vec3(1,1,0));
+  float e=h31(i+vec3(0,0,1)),f2=h31(i+vec3(1,0,1)),g=h31(i+vec3(0,1,1)),h=h31(i+vec3(1,1,1));
+  return mix(mix(mix(a,b,u.x),mix(c,d,u.x),u.y),mix(mix(e,f2,u.x),mix(g,h,u.x),u.y),u.z);
+}
+
+// ── fBm with time advection ─────────────────────────────────
+float fbm(vec3 p, float t, int oct){
+  float v=0., amp=.5;
+  vec3 q=p+vec3(t*.12,-t*.09,t*.06);
+  mat3 M=mat3(1.6,1.2,-0.6,-0.8,1.4,0.4,0.4,-0.4,1.8);
+  for(int i=0;i<7;i++){
+    if(i>=oct) break;
+    v+=amp*(vnoise(q)-0.5);
+    q=M*q*1.08+vec3(t*.18+float(i)*1.9,float(i)*2.3,t*.13);
+    amp*=0.48;
+  }
+  return clamp(v+0.5,0.,1.);
+}
+
+// ── Novikov-Thorne temperature ──────────────────────────────
+float diskNT(float r, float M){
+  float x=sqrt(max(r/M,1.0)), x0=sqrt(6.0);
+  float f=1.0-x0/x-1.5*(x0/x)*log(x/x0);
+  return pow(M/max(r,.01),1.5)*max(f,0.0);
+}
+
+// ── Starfield (3 tiers + Milky Way) ────────────────────────
+float stars(vec3 d){
+  d=normalize(d);
+  float s=0.;
+  vec3 g=floor(d*68.+.5); float hv=h31(g); s+=step(.9982,hv)*h31(g+vec3(7.))*6.;
+  g=floor(d*195.+.5); hv=h31(g+vec3(3.)); s+=step(.9951,hv)*h31(g+vec3(11.))*2.5;
+  g=floor(d*510.+.5); hv=h31(g+vec3(17.)); s+=step(.9918,hv)*h31(g+vec3(5.))*1.1;
+  float lat=abs(d.y), lon=abs(dot(d.xz,normalize(vec2(.28,.96))));
+  float band=pow(max(0.,1.-lat*1.4-lon*.12),6.)*.042;
+  float cloud=vnoise(d*3.5+vec3(2.1,.8,0.))*.012;
+  s+=band+cloud; return s;
+}
+
+// ── Photon ring glow ────────────────────────────────────────
+float photonGlow(float r, float M){
+  float rph=1.5*M, w=M*0.065;
+  return exp(-pow((r-rph)/w,2.))*20.0;
+}
+
+// ─────────────────────────────────────────────────────────────
+void main(){
+  vec2 uv=(gl_FragCoord.xy-.5*uRes)/uRes.y;
+
+  // ── Camera ─────────────────────────────────────────────
+  vec3 ro=vec3(0.,0.,-uDst);
+  vec3 rd=normalize(vec3(uv*uFov,1.));
+  rd.yz*=rot2(uTlt); ro.yz*=rot2(uTlt);
+  float ca=uTime*uOrb+uYaw;
+  rd.xz*=rot2(ca);  ro.xz*=rot2(ca);
+
+  // ── Black hole parameters (Kerr) ───────────────────────
+  float M  =uMass;
+  float RS =2.0*M;
+  float a  =uSpin*M;
+  float rH =M+sqrt(max(0.,M*M-a*a));
+  float spinN=clamp(uSpin,0.,0.9995);
+  float rISCO;
+  {
+    float Z1=1.+pow(1.-spinN*spinN,1./3.)*(pow(1.+spinN,1./3.)+pow(1.-spinN,1./3.));
+    float Z2=sqrt(3.*spinN*spinN+Z1*Z1);
+    rISCO=M*(3.+Z2-sqrt((3.-Z1)*(3.+Z1+2.*Z2)));
+    rISCO=max(rISCO,rH*1.02);
+  }
+  float rOut=M*uDisk;
+  float rErgo=2.*M; // equatorial ergosphere
+
+  // ── Ray marching ───────────────────────────────────────
+  vec3  p  =ro, d =rd;
+  vec3  col=vec3(0.);
+  float T  =1.0;
+  int   crossings=0;
+
+  for(int i=0;i<900;i++){
+    if(i>=uStp) break;
+
+    float r2=dot(p,p);
+    float r =sqrt(r2);
+
+    if(r>68.) break;
+
+    // ── Swallowed ────────────────────────────────────────
+    if(r<rH*0.96){
+      float hg=uHgl*exp(-pow((r-rH*.55)/(.45*M),2.))*0.1;
+      col+=uCh*hg*T; T=0.; break;
+    }
+
+    // ── Geodesic deflection (Schwarzschild + LT) ────────
+    if(uLns>.5){
+      vec3 hv =cross(p,d);
+      float h2=dot(hv,hv);
+      float r5=r2*r2*r;
+      vec3 acc=(-1.5*RS*h2/r5)*p;
+      if(abs(a)>.005){
+        float LT=2.0*a*M/(r2*r2);
+        vec3  J =vec3(0.,1.,0.);
+        acc+=LT*(dot(d,J)*p-dot(p,J)*d)/max(r,.01);
+      }
+      // Adaptive step: denser near photon sphere / horizon
+      float psFac=exp(-abs(r-1.5*RS)/(.35*M));
+      float dt=clamp(.007*r*(1.+5.*psFac),.003,.10);
+      vec3 pn=p+d*dt;
+      vec3 dn=normalize(d+acc*dt);
+
+      // ── Disk plane crossing ──────────────────────────
+      if(p.y*pn.y<0.0){
+        float frac=abs(p.y)/max(abs(p.y)+abs(pn.y),1e-5);
+        vec3  pd  =p+d*dt*frac;
+        float rd_ =length(pd);
+
+        if(rd_>rH*1.005 && rd_<rOut){
+          crossings++;
+          float normR=clamp((rd_-rH)/(rOut-rH),0.,1.);
+
+          // Vertical density (Gaussian profile)
+          float scaleH=uThk*rd_+M*.022;
+          float vertD =abs(pd.y)/max(scaleH,1e-4);
+          float vertW =exp(-vertD*vertD*5.0);
+
+          // Radial density
+          float radDen=smoothstep(0.,.08,normR)*smoothstep(1.,.45,normR);
+          radDen*=smoothstep(rH,rH*1.45,rd_);
+          radDen*=uDen*vertW;
+
+          if(radDen>.002){
+            // Keplerian + infall
+            float omega=uRot*sqrt(M/max(rd_*rd_*rd_,.01));
+            float angle=atan(pd.z,pd.x)-uTime*omega;
+            float plF  =pow(max(0.,(rISCO-rd_)/(rISCO+.001)),2.)*5.;
+            float pr   =rd_+uTime*(0.18+plF);
+
+            // fBm plasma texture
+            int octs=rd_<rISCO*1.4?6:4;
+            vec3 ap=vec3(cos(angle)*pr*1.5,sin(angle)*pr*1.5,uTime*.07);
+            float n=fbm(ap*uTrb,uTime,octs);
+            n=n*.6+fbm(ap*3.0+vec3(uTime*.3),uTime,3)*.4;
+            n=clamp(n,0.,1.);
+
+            // Brightness via NT profile
+            float NT    =diskNT(rd_,M);
+            float bright=pow(M*2./max(rd_,.1),2.2)*n*NT*2.5;
+
+            // Infalling bright blobs
+            vec3 bp=vec3(cos(angle)*pr*5.,uTime*.22,sin(angle)*pr*5.);
+            float blob=smoothstep(.68,1.,vnoise(bp*2.1+vec3(uTime*2.0)));
+            blob*=pow(M/max(rd_,.1),1.7)*16.;
+            bright+=blob;
+
+            // Near-horizon superheating
+            float horiz=smoothstep(rISCO*1.7,rISCO*.9,rd_)*5.5*uHgl;
+            bright*=(1.+horiz);
+
+            // Relativistic Doppler g⁴
+            float gfactor=1.;
+            if(uDop>.5){
+              float vK   =sqrt(M/max(rd_,.01));
+              vec3 velDir=normalize(cross(vec3(0.,1.,0.),pd));
+              float plF2 =smoothstep(rISCO*1.3,rISCO*.9,rd_);
+              velDir=normalize(mix(velDir,-normalize(pd),plF2*.9));
+              float beta  =vK*clamp(1.-plF2*.3,.08,1.);
+              float costh =dot(normalize(d),velDir);
+              float gam   =1./sqrt(max(1.-beta*beta,2e-4));
+              gfactor=clamp(1./(gam*(1.+beta*costh)),.005,14.);
+              gfactor=pow(gfactor,4.);
+            }
+
+            // Gravitational redshift √g_tt
+            float zfactor=1.;
+            if(uRed>.5){
+              float gtt=1.-RS/max(rd_,RS*1.001);
+              zfactor=sqrt(max(gtt,1e-4));
+            }
+
+            // Temperature-based colour (NT profile)
+            float temp=pow(1.-normR,2.8)*NT*1.4;
+            temp=clamp(temp,0.,1.);
+            vec3 em=mix(uCo,uCm,smoothstep(0.,.42,temp));
+            em=mix(em,uCi,smoothstep(.42,1.,temp));
+
+            // White-hot near horizon
+            float pWhite=smoothstep(rH*2.4,rH*1.03,rd_);
+            em=mix(em,vec3(1.,.97,.90),pWhite*.85);
+
+            em*=bright*gfactor*zfactor;
+
+            // Photon ring multi-orbit glow (n≥2 crossings)
+            if(uRng>.5 && crossings>=2){
+              float pr2=photonGlow(rd_,M);
+              float flicker=.65+.35*sin(uTime*8.+rd_*20.);
+              em+=uCc*pr2*.6*flicker;
+            }
+
+            // Corona
+            if(uCor>.5){
+              float cAmp=exp(-normR*2.2)*exp(-vertD*.35)*uHgl;
+              em+=uCc*cAmp*.6;
+            }
+
+            float alpha=clamp(radDen*.88,0.,.97);
+            col+=em*T*alpha;
+            T*=(1.-alpha);
+            if(T<.002) break;
+          }
+        }
+      }
+
+      p=pn; d=dn;
+    } else {
+      // lensing off: straight ray, still check disk
+      float dt=clamp(.007*r,.003,.12);
+      vec3 pn=p+d*dt;
+      if(p.y*pn.y<0.0){
+        float frac=abs(p.y)/max(abs(p.y)+abs(pn.y),1e-5);
+        vec3 pd=p+d*dt*frac; float rd_=length(pd);
+        if(rd_>rH*1.005&&rd_<rOut){
+          crossings++;
+          float normR=clamp((rd_-rH)/(rOut-rH),0.,1.);
+          float scaleH=uThk*rd_; float vertD=abs(pd.y)/max(scaleH,1e-4);
+          float vertW=exp(-vertD*vertD*5.); float radDen=smoothstep(0.,.08,normR)*smoothstep(1.,.45,normR)*uDen*vertW;
+          if(radDen>.003){
+            float NT=diskNT(rd_,M);
+            float temp=pow(1.-normR,2.8)*NT*1.4; temp=clamp(temp,0.,1.);
+            vec3 em=mix(uCo,uCm,smoothstep(0.,.42,temp)); em=mix(em,uCi,smoothstep(.42,1.,temp));
+            float bright=pow(M*2./max(rd_,.1),2.)*NT*2.;
+            em*=bright; float alpha=clamp(radDen*.8,0.,.95);
+            col+=em*T*alpha; T*=(1.-alpha); if(T<.002) break;
+          }
+        }
+      }
+      p=pn;
+    }
+  }
+
+  // ── Photon sphere edge brightening ─────────────────────
+  float rFinal=length(p);
+  if(T>.01){
+    float psGlow=photonGlow(rFinal,uMass)*T*.045*uHgl;
+    col+=uCc*psGlow;
+  }
+
+  // ── Starfield ───────────────────────────────────────────
+  if(T>.003&&uStr>.5){
+    float sv=stars(d);
+    float tint=fhash(uhash(uint(floor(length(d)*300.+7.))));
+    vec3 sc=mix(vec3(.88,.93,1.),vec3(1.,.83,.55),tint);
+    col+=sv*sc*T;
+  }
+
+  // ── Bloom & chromatic flare ─────────────────────────────
+  if(uBlm>.5){
+    float lum=dot(col,vec3(.2126,.7152,.0722));
+    float b=max(0.,lum-.60);
+    col+=uCc*b*.65+vec3(1.,.90,.68)*b*b*.40;
+    float streak=max(0.,lum-1.1);
+    col+=vec3(streak*.09,streak*.04,streak*.18);
+  }
+
+  // ── ACES filmic tone map ────────────────────────────────
+  col*=uExp;
+  col=(col*(2.51*col+.03))/(col*(2.43*col+.59)+.14);
+  col=pow(clamp(col,0.,1.),vec3(1./2.2));
+
+  // ── Film grain ──────────────────────────────────────────
+  uint gix=uint(gl_FragCoord.x+gl_FragCoord.y*uRes.x);
+  float grain=(fhash(gix+uhash(uint(uTime*1800.)))-.5)*.013;
+  col=clamp(col+grain,0.,1.);
+
+  frag=vec4(col,1.);
+}`;
+
+function mkShader(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    console.error('Shader compile error:', gl.getShaderInfoLog(s));
+    return null;
+  }
+  return s;
+}
+const prog = gl.createProgram();
+gl.attachShader(prog, mkShader(gl.VERTEX_SHADER, VS));
+gl.attachShader(prog, mkShader(gl.FRAGMENT_SHADER, FS));
+gl.linkProgram(prog);
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+  console.error('Program link error:', gl.getProgramInfoLog(prog));
+}
+
+const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]), gl.STATIC_DRAW);
+const al = gl.getAttribLocation(prog, 'a');
+gl.enableVertexAttribArray(al);
+gl.vertexAttribPointer(al, 2, gl.FLOAT, false, 0, 0);
+
+const U = {};
+['uRes','uTime','uMass','uSpin','uDisk','uThk','uDen','uRot','uTrb',
+ 'uTlt','uYaw','uDst','uFov','uOrb','uHgl','uExp','uStp',
+ 'uDop','uRng','uLns','uRed','uBlm','uStr','uCor',
+ 'uCo','uCm','uCi','uCc','uCh'
+].forEach(n => U[n] = gl.getUniformLocation(prog, n));
+
+// ════════════════════════════════════════════════════════════
+//  CONFIG STATE — Gargantua defaults
+// ════════════════════════════════════════════════════════════
+const C = {
+  mass:1.4, spin:0.998, disk:14, thk:0.06, den:1.6, rot:1.0, trb:0.70,
+  tlt:0.17, yaw:0, dst:18, fov:1.0, orb:0.018,
+  hgl:1.2, exp:1.5, stp:700,
+  dop:1, rng:1, lns:1, red:1, blm:1, str:1, cor:1,
+};
+const DEFAULTS = {...C};
+
+const COLOR_DEFAULTS = {
+  o: [0.75, 0.38, 0.06],
+  m: [1.00, 0.50, 0.12],
+  i: [1.00, 0.88, 0.62],
+  c: [0.38, 0.63, 1.00],
+  h: [1.00, 1.00, 1.00],
+};
+
+// Gargantua specific color palette
+let P = JSON.parse(JSON.stringify(COLOR_DEFAULTS));
+
+// ════════════════════════════════════════════════════════════
+//  SLIDER / TOGGLE BINDING
+// ════════════════════════════════════════════════════════════
+function setTrack(el) {
+  const pct = ((parseFloat(el.value)-parseFloat(el.min))/(parseFloat(el.max)-parseFloat(el.min))*100).toFixed(1)+'%';
+  el.style.setProperty('--pct', pct);
+}
+
+function bindSlider(id, key, fmt) {
+  const el = document.getElementById('r'+id);
+  const vl = document.getElementById('v'+id);
+  if (!el) return;
+  setTrack(el);
+  el.addEventListener('input', () => {
+    C[key] = parseFloat(el.value);
+    if (vl) vl.textContent = fmt ? fmt(C[key]) : C[key];
+    setTrack(el);
+    syncStats();
+  });
+}
+
+const f2=v=>v.toFixed(2), f1=v=>v.toFixed(1), fi=v=>Math.round(v), f3=v=>v.toFixed(3);
+bindSlider('mas','mass',f2);
+bindSlider('spi','spin',f3);
+bindSlider('hgl','hgl',f2);
+bindSlider('dsk','disk',f1);
+bindSlider('thk','thk',f3);
+bindSlider('den','den',f1);
+bindSlider('rot','rot',f2);
+bindSlider('trb','trb',f2);
+bindSlider('tlt','tlt',f2);
+bindSlider('dst','dst',fi);
+bindSlider('fov','fov',f2);
+bindSlider('orb','orb',f3);
+bindSlider('stp','stp',fi);
+bindSlider('exp','exp',f1);
+
+function bindToggle(id, key) {
+  const el = document.getElementById('t'+id);
+  if (el) el.addEventListener('change', e => C[key] = e.target.checked ? 1 : 0);
+}
+['lns','dop','red','rng','cor','str','blm'].forEach(k => bindToggle(k,k));
+
+// Color pickers
+function hexToRgb01(hex) {
+  const r = parseInt(hex.slice(1,3),16)/255;
+  const g = parseInt(hex.slice(3,5),16)/255;
+  const b = parseInt(hex.slice(5,7),16)/255;
+  return [r,g,b];
+}
+['outer','mid','inner','corona','horizon'].forEach((id, idx) => {
+  const pc = document.getElementById('pc-'+id);
+  const sw = document.getElementById('sw-'+id);
+  pc.addEventListener('input', () => {
+    sw.style.background = pc.value;
+    const rgb = hexToRgb01(pc.value);
+    if (id==='outer') P.o=rgb;
+    else if (id==='mid') P.m=rgb;
+    else if (id==='inner') P.i=rgb;
+    else if (id==='corona') P.c=rgb;
+    else if (id==='horizon') P.h=rgb;
+  });
+});
+
+// ════════════════════════════════════════════════════════════
+//  TAB SWITCHING
+// ════════════════════════════════════════════════════════════
+document.querySelectorAll('.cp-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const t = tab.dataset.tab;
+    document.querySelectorAll('.cp-tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(x => x.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-'+t).classList.add('active');
+  });
+});
+
+// ════════════════════════════════════════════════════════════
+//  PRESET & RESET BUTTONS
+// ════════════════════════════════════════════════════════════
+document.getElementById('preset-gargantua').addEventListener('click', () => {
+  Object.assign(C, DEFAULTS);
+  P = JSON.parse(JSON.stringify(COLOR_DEFAULTS));
+  refreshAllSliders();
+  refreshAllColorPickers();
+  syncStats();
+  showToast('GARGANTUA DEFAULT LOADED');
+});
+
+function refreshAllColorPickers() {
+  const map = {
+    'pc-outer': P.o, 'pc-mid': P.m, 'pc-inner': P.i, 'pc-corona': P.c, 'pc-horizon': P.h
+  };
+  const swMap = {
+    'sw-outer': P.o, 'sw-mid': P.m, 'sw-inner': P.i, 'sw-corona': P.c, 'sw-horizon': P.h
+  };
+
+  function rgbToHex(rgb) {
+    const r = Math.round(rgb[0] * 255).toString(16).padStart(2, '0');
+    const g = Math.round(rgb[1] * 255).toString(16).padStart(2, '0');
+    const b = Math.round(rgb[2] * 255).toString(16).padStart(2, '0');
+    return `#${r}${g}${b}`;
+  }
+
+  for (const [id, rgb] of Object.entries(map)) {
+    const el = document.getElementById(id);
+    if (el) el.value = rgbToHex(rgb);
+  }
+  for (const [id, rgb] of Object.entries(swMap)) {
+    const el = document.getElementById(id);
+    if (el) el.style.background = rgbToHex(rgb);
+  }
+}
+document.getElementById('btn-reset-view-main').addEventListener('click', () => {
+  C.tlt=0.17; C.yaw=0; C.dst=18; C.fov=1.0; C.orb=0.018;
+  refreshAllSliders();
+  syncStats();
+  showToast('VIEW RESET');
+});
+document.getElementById('btn-cam-reset').addEventListener('click', () => {
+  C.tlt=0.17; C.yaw=0; C.dst=18; C.fov=1.0; C.orb=0.018;
+  refreshAllSliders();
+  syncStats();
+  showToast('CAMERA RESET');
+});
+
+function refreshAllSliders() {
+  const map = {
+    'rmas':'mass','rspi':'spin','rhgl':'hgl','rdsk':'disk','rthk':'thk',
+    'rden':'den','rrot':'rot','rtrb':'trb','rtlt':'tlt','rdst':'dst',
+    'rfov':'fov','rorb':'orb','rstp':'stp','rexp':'exp',
+  };
+  const disp = {
+    'vmas':v=>v.toFixed(2),'vspi':v=>v.toFixed(3),'vhgl':v=>v.toFixed(2),
+    'vdsk':v=>v.toFixed(1),'vthk':v=>v.toFixed(3),'vden':v=>v.toFixed(1),
+    'vrot':v=>v.toFixed(2),'vtrb':v=>v.toFixed(2),'vtlt':v=>v.toFixed(2),
+    'vdst':v=>Math.round(v),'vfov':v=>v.toFixed(2),'vorb':v=>v.toFixed(3),
+    'vstp':v=>Math.round(v),'vexp':v=>v.toFixed(1),
+  };
+  for (const [id, key] of Object.entries(map)) {
+    const el = document.getElementById(id);
+    if (el) { el.value = C[key]; setTrack(el); }
+  }
+  for (const [id, fmt] of Object.entries(disp)) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = fmt(C[id.replace('v','r').startsWith('r') ? C[map['r'+id.slice(1)]] : 0] || C[map['r'+id.slice(1)]] || 0);
+  }
+  // manual fix:
+  document.getElementById('vmas').textContent = C.mass.toFixed(2);
+  document.getElementById('vspi').textContent = C.spin.toFixed(3);
+  document.getElementById('vhgl').textContent = C.hgl.toFixed(2);
+  document.getElementById('vdsk').textContent = C.disk.toFixed(1);
+  document.getElementById('vthk').textContent = C.thk.toFixed(3);
+  document.getElementById('vden').textContent = C.den.toFixed(1);
+  document.getElementById('vrot').textContent = C.rot.toFixed(2);
+  document.getElementById('vtrb').textContent = C.trb.toFixed(2);
+  document.getElementById('vtlt').textContent = C.tlt.toFixed(2);
+  document.getElementById('vdst').textContent = Math.round(C.dst);
+  document.getElementById('vfov').textContent = C.fov.toFixed(2);
+  document.getElementById('vorb').textContent = C.orb.toFixed(3);
+  document.getElementById('vstp').textContent = Math.round(C.stp);
+  document.getElementById('vexp').textContent = C.exp.toFixed(1);
+  // reset slider values
+  ['rmas','rspi','rhgl','rdsk','rthk','rden','rrot','rtrb','rtlt','rdst','rfov','rorb','rstp','rexp'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = C[map[id]]; setTrack(el); }
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  SYNC STATS PANEL
+// ════════════════════════════════════════════════════════════
+function syncStats() {
+  const M = C.mass, a = C.spin * M;
+  const RS = 2 * M;
+  const rH = M + Math.sqrt(Math.max(0, M*M - a*a));
+  const rErgo = 2 * M;
+  const spinN = Math.min(C.spin, 0.9995);
+  const Z1 = 1 + Math.cbrt(1-spinN*spinN)*(Math.cbrt(1+spinN)+Math.cbrt(1-spinN));
+  const Z2 = Math.sqrt(3*spinN*spinN + Z1*Z1);
+  const rISCO = Math.max(rH*1.02, M*(3+Z2-Math.sqrt((3-Z1)*(3+Z1+2*Z2))));
+  const rOut = M * C.disk;
+  const rPh = 1.5 * M;
+  const tempStr = (1.2e8/M).toExponential(2)+' K';
+  const lum = (C.den*M*M*C.disk*.13).toFixed(2);
+  const T_H = (6.17e-8 / M).toExponential(2);
+  const kappa = (1/(4*M)).toFixed(4);
+  const J = (C.spin * M * M).toFixed(3);
+  const td_r = rISCO;
+  const tdVal = 1/Math.sqrt(Math.max(0.001, 1 - RS/Math.max(td_r, RS*1.001)));
+
+  const set = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
+  set('sm-mass', M.toFixed(2));
+  set('sm-spin', C.spin.toFixed(4));
+  set('sm-rs',   RS.toFixed(3));
+  set('sm-rh',   rH.toFixed(3));
+  set('sm-erg',  rErgo.toFixed(3));
+  set('sm-pr',   rPh.toFixed(3));
+  set('sm-isco', rISCO.toFixed(3));
+  set('sm-rout', rOut.toFixed(1));
+  set('sm-temp', tempStr);
+  set('sm-th',   T_H);
+  set('sm-lum',  lum);
+  set('sm-td',   'γ='+Math.min(tdVal,999).toFixed(2));
+  set('sm-kappa', kappa);
+  set('sm-J',    J);
+  set('sm-dst',  Math.round(C.dst));
+  set('sm-tlt',  C.tlt.toFixed(2));
+  set('sm-yaw',  C.yaw.toFixed(2));
+
+  // Grav bar (normalised spin effect)
+  const gravPct = Math.min(100, (0.3 + C.spin*0.7)*100);
+  document.getElementById('grav-bar').style.width = gravPct + '%';
+
+  // Top tickers
+  set('tk-rs',   RS.toFixed(2)+' M');
+  set('tk-pr',   rPh.toFixed(2)+' M');
+  set('tk-isco', rISCO.toFixed(2)+' M');
+  set('tk-tmp',  tempStr);
+  set('tk-td',   'γ='+Math.min(tdVal,99).toFixed(2));
+
+  // Botbar
+  set('bb-mass', M.toFixed(2)+' M☉');
+  set('bb-spin', C.spin.toFixed(3)+' a*');
+  set('bb-dst',  Math.round(C.dst)+' M');
+
+  drawSpectrum(T_H);
+}
+syncStats();
+
+// Hawking spectrum mini canvas
+function drawSpectrum(T_H_str) {
+  const cnv = document.getElementById('spec-canvas');
+  if (!cnv) return;
+  const ctx = cnv.getContext('2d');
+  const W = cnv.clientWidth * (window.devicePixelRatio||1);
+  const H = cnv.clientHeight * (window.devicePixelRatio||1);
+  cnv.width = W; cnv.height = H;
+  ctx.clearRect(0,0,W,H);
+  // Planck-like curve
+  ctx.beginPath();
+  const peak = W * 0.35;
+  for (let x=0; x<W; x++) {
+    const nu = (x/W)*4;
+    const y = (nu*nu*nu)/(Math.exp(nu/0.6)-1+0.001);
+    const yN = H - y*H*0.55;
+    if (x===0) ctx.moveTo(x,yN); else ctx.lineTo(x,yN);
+  }
+  const grad = ctx.createLinearGradient(0,0,W,0);
+  grad.addColorStop(0,'rgba(96,160,255,0.8)');
+  grad.addColorStop(0.3,'rgba(232,160,64,0.9)');
+  grad.addColorStop(0.7,'rgba(255,80,20,0.7)');
+  grad.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // peak marker
+  ctx.beginPath();
+  ctx.moveTo(peak,0); ctx.lineTo(peak,H);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([2,3]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ════════════════════════════════════════════════════════════
+//  FPS
+// ════════════════════════════════════════════════════════════
+let fpsFrames=0, fpsLast=performance.now(), curFPS=60;
+function tickFPS(now) {
+  fpsFrames++;
+  if (now-fpsLast>500) {
+    curFPS = Math.round(fpsFrames*1000/(now-fpsLast));
+    fpsFrames=0; fpsLast=now;
+    const el=document.getElementById('fps-el');
+    if(el) el.textContent=curFPS+' FPS';
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  PANEL TOGGLES
+// ════════════════════════════════════════════════════════════
+const ctrlPanel = document.getElementById('ctrl-panel');
+const ctrlToggle= document.getElementById('ctrl-toggle');
+const statsPanel= document.getElementById('stats-panel');
+const statsToggle= document.getElementById('stats-toggle');
+
+ctrlToggle.addEventListener('click', () => {
+  ctrlPanel.classList.toggle('open');
+});
+statsToggle.addEventListener('click', () => {
+  statsPanel.classList.toggle('open');
+});
+
+// Info overlay
+document.getElementById('info-btn').addEventListener('click', () => {
+  document.getElementById('info-overlay').classList.add('active');
+});
+document.getElementById('info-close').addEventListener('click', () => {
+  document.getElementById('info-overlay').classList.remove('active');
+});
+document.getElementById('info-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('info-overlay'))
+    document.getElementById('info-overlay').classList.remove('active');
+});
+
+// ════════════════════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ════════════════════════════════════════════════════════════
+//  INPUT — mouse / touch / keyboard / wheel
+// ════════════════════════════════════════════════════════════
+let drag=false, lx=0, ly=0, shiftHeld=false, uiHidden=false;
+
+window.addEventListener('keydown', e => {
+  shiftHeld=e.shiftKey;
+  if (e.key==='h'||e.key==='H') {
+    uiHidden=!uiHidden;
+    ['topbar','botbar'].forEach(id => {
+      const el=document.getElementById(id);
+      el.style.opacity=uiHidden?'0':'1';
+      el.style.transition='opacity .4s';
+    });
+    document.getElementById('reticle').style.opacity=uiHidden?'0':'0.2';
+    document.getElementById('info-btn').style.opacity=uiHidden?'0':'1';
+    document.getElementById('info-btn').style.pointerEvents=uiHidden?'none':'auto';
+  }
+  if (e.key==='r'||e.key==='R') {
+    C.yaw=0; C.tlt=0.17; C.dst=18;
+    const tlt=document.getElementById('rtlt'); if(tlt){tlt.value=C.tlt;setTrack(tlt);}
+    const dst=document.getElementById('rdst'); if(dst){dst.value=C.dst;setTrack(dst);}
+    document.getElementById('vtlt').textContent=C.tlt.toFixed(2);
+    document.getElementById('vdst').textContent=Math.round(C.dst);
+    syncStats();
+    showToast('CAMERA RESET');
+  }
+});
+window.addEventListener('keyup', e => { shiftHeld=e.shiftKey; });
+
+cv.addEventListener('mousedown', e => {
+  if (e.button!==0) return;
+  drag=true; lx=e.clientX; ly=e.clientY;
+  cv.style.cursor='none';
+});
+window.addEventListener('mouseup', () => { drag=false; cv.style.cursor='crosshair'; });
+window.addEventListener('mousemove', e => {
+  if (!drag) return;
+  const dx=e.clientX-lx, dy=e.clientY-ly;
+  const mul=shiftHeld?.0008:.0038;
+  C.yaw -= dx*mul;
+  C.tlt = Math.max(-1.55, Math.min(1.55, C.tlt+dy*mul*.65));
+  lx=e.clientX; ly=e.clientY;
+  const rtlt=document.getElementById('rtlt'); if(rtlt){rtlt.value=C.tlt;setTrack(rtlt);}
+  document.getElementById('vtlt').textContent=C.tlt.toFixed(2);
+  document.getElementById('bb-coords').textContent='YAW '+C.yaw.toFixed(2)+' · TILT '+C.tlt.toFixed(2);
+  document.getElementById('sm-tlt').textContent=C.tlt.toFixed(2);
+  document.getElementById('sm-yaw').textContent=C.yaw.toFixed(2);
+});
+
+window.addEventListener('wheel', e => {
+  if (e.target.closest('#ctrl-panel') || 
+      e.target.closest('#stats-panel') || 
+      e.target.closest('#info-overlay')) return;
+  e.preventDefault();
+  C.dst=Math.max(4,Math.min(40,C.dst+e.deltaY*.022));
+  const rdst=document.getElementById('rdst'); if(rdst){rdst.value=C.dst;setTrack(rdst);}
+  document.getElementById('vdst').textContent=Math.round(C.dst);
+  document.getElementById('sm-dst').textContent=Math.round(C.dst);
+  document.getElementById('bb-dst').textContent=Math.round(C.dst)+' M';
+}, { passive:false });
+
+// Touch
+let ts=null, tsDist=null;
+cv.addEventListener('touchstart', e => {
+  if(e.touches.length===1) ts={x:e.touches[0].clientX,y:e.touches[0].clientY};
+  if(e.touches.length===2){
+    const dx=e.touches[0].clientX-e.touches[1].clientX;
+    const dy=e.touches[0].clientY-e.touches[1].clientY;
+    tsDist=Math.sqrt(dx*dx+dy*dy);
+  }
+},{passive:true});
+cv.addEventListener('touchmove', e => {
+  if(e.touches.length===1&&ts){
+    C.yaw-=(e.touches[0].clientX-ts.x)*.006;
+    C.tlt=Math.max(-1.55,Math.min(1.55,C.tlt+(e.touches[0].clientY-ts.y)*.005));
+    ts={x:e.touches[0].clientX,y:e.touches[0].clientY};
+  }
+  if(e.touches.length===2&&tsDist!==null){
+    const dx=e.touches[0].clientX-e.touches[1].clientX;
+    const dy=e.touches[0].clientY-e.touches[1].clientY;
+    const nd=Math.sqrt(dx*dx+dy*dy);
+    C.dst=Math.max(4,Math.min(40,C.dst+(tsDist-nd)*.04));
+    const rdst=document.getElementById('rdst'); if(rdst){rdst.value=C.dst;setTrack(rdst);}
+    document.getElementById('vdst').textContent=Math.round(C.dst);
+    tsDist=nd;
+  }
+},{passive:true});
+
+// ════════════════════════════════════════════════════════════
+//  RENDER LOOP
+// ════════════════════════════════════════════════════════════
+const t0=performance.now();
+let frame=0, loaderDone=false;
+
+function hideLoader() {
+  if (loaderDone) return; loaderDone=true;
+  clearInterval(msgInterval);
+  lstatus.textContent='Ready';
+  setTimeout(() => {
+    loader.classList.add('fade');
+    setTimeout(() => { loader.style.display='none'; }, 1300);
+  }, 300);
+}
+
+let syncCounter=0;
+function render(now) {
+  tickFPS(now);
+  const t=(now-t0)/1000;
+  if (frame++===2) hideLoader();
+  if (++syncCounter%18===0) syncStats();
+
+  gl.useProgram(prog);
+  gl.bindVertexArray(vao);
+  gl.uniform2f(U.uRes, cv.width, cv.height);
+  gl.uniform1f(U.uTime, t);
+  gl.uniform1f(U.uMass, C.mass);
+  gl.uniform1f(U.uSpin, C.spin);
+  gl.uniform1f(U.uDisk, C.disk);
+  gl.uniform1f(U.uThk,  C.thk);
+  gl.uniform1f(U.uDen,  C.den);
+  gl.uniform1f(U.uRot,  C.rot);
+  gl.uniform1f(U.uTrb,  C.trb);
+  gl.uniform1f(U.uTlt,  C.tlt);
+  gl.uniform1f(U.uYaw,  C.yaw);
+  gl.uniform1f(U.uDst,  C.dst);
+  gl.uniform1f(U.uFov,  C.fov);
+  gl.uniform1f(U.uOrb,  C.orb);
+  gl.uniform1f(U.uHgl,  C.hgl);
+  gl.uniform1f(U.uExp,  C.exp);
+  gl.uniform1i(U.uStp,  C.stp);
+  gl.uniform1f(U.uDop,  C.dop);
+  gl.uniform1f(U.uRng,  C.rng);
+  gl.uniform1f(U.uLns,  C.lns);
+  gl.uniform1f(U.uRed,  C.red);
+  gl.uniform1f(U.uBlm,  C.blm);
+  gl.uniform1f(U.uStr,  C.str);
+  gl.uniform1f(U.uCor,  C.cor);
+  gl.uniform3fv(U.uCo, P.o);
+  gl.uniform3fv(U.uCm, P.m);
+  gl.uniform3fv(U.uCi, P.i);
+  gl.uniform3fv(U.uCc, P.c);
+  gl.uniform3fv(U.uCh, P.h);
+
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+  requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+
+})();
+</script>
+</body>
+</html>
