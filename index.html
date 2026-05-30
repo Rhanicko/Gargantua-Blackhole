@@ -317,11 +317,11 @@ canvas#c {
   position: absolute;
   left: -380px; top: 90px; bottom: 64px;
   width: 340px;
-  background: var(--glass-bg);
+  background: rgba(4, 4, 12, 0.35);
   border: 1px solid var(--glass-border);
   border-radius: 0 12px 12px 0;
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(32px) saturate(1.6);
+  -webkit-backdrop-filter: blur(32px) saturate(1.6);
   display: flex; flex-direction: column;
   transition: left 0.5s cubic-bezier(0.19, 1, 0.22, 1);
   overflow: hidden;
@@ -540,11 +540,11 @@ input[type=range]::-moz-range-thumb {
   position: absolute;
   right: -350px; top: 90px; bottom: 64px;
   width: 320px;
-  background: var(--glass-bg);
+  background: rgba(4, 4, 12, 0.35);
   border: 1px solid var(--glass-border);
   border-radius: 12px 0 0 12px;
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(32px) saturate(1.6);
+  -webkit-backdrop-filter: blur(32px) saturate(1.6);
   display: flex; flex-direction: column;
   transition: right 0.5s cubic-bezier(0.19, 1, 0.22, 1);
   overflow: hidden;
@@ -782,20 +782,48 @@ input[type=range]::-moz-range-thumb {
 #info-btn {
   position: absolute;
   bottom: 56px; right: 24px;
-  pointer-events: auto;
-  font-family: var(--font-mono);
-  font-size: 0.42rem; letter-spacing: 0.25em;
-  padding: 8px 16px;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 18px;
+  background: rgba(4, 4, 12, 0.4);
   border: 1px solid var(--glass-border);
-  border-radius: 4px;
-  background: var(--glass-bg);
-  color: var(--muted); cursor: pointer;
-  text-transform: uppercase;
-  backdrop-filter: blur(12px);
+  border-radius: 8px;
+  color: var(--white);
+  cursor: pointer;
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
   transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
   z-index: 10;
+  pointer-events: auto;
+  text-align: left;
 }
-#info-btn:hover { color: var(--amber); border-color: var(--amber-dim); background: var(--amber-glow); }
+#info-btn:hover {
+  background: rgba(232, 160, 64, 0.1);
+  border-color: var(--amber-dim);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4), 0 0 15px rgba(232, 160, 64, 0.15);
+}
+
+.ib-btn-icon {
+  width: 20px; height: 20px;
+  color: var(--amber);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.4s ease;
+}
+.ib-btn-icon svg { fill: currentColor; }
+#info-btn:hover .ib-btn-icon { transform: rotate(15deg) scale(1.1); }
+
+.ib-btn-text { display: flex; flex-direction: column; gap: 2px; }
+.ib-btn-label {
+  font-family: var(--font-head);
+  font-size: 0.68rem; font-weight: 700;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--white);
+}
+.ib-btn-sub {
+  font-family: var(--font-mono);
+  font-size: 0.38rem; letter-spacing: 0.1em;
+  color: var(--ghost); text-transform: uppercase;
+}
 
 /* Hide info button when stats panel is open */
 #stats-panel.open ~ #info-btn {
@@ -853,7 +881,7 @@ input[type=range]::-moz-range-thumb {
 @media (max-width: 600px) {
   #topbar { height: 56px; padding: 0 16px; }
   .tb-name { font-size: 1.1rem; letter-spacing: 0.3em; }
-  .status-indicator { padding: 4px 10px; font-size: 0.45rem; letter-spacing: 0.15em; }
+  .status-indicator { display: none; }
   .fps-display { font-size: 0.5rem; padding: 4px 8px; }
   
   #botbar { padding: 0 16px; height: 36px; }
@@ -861,19 +889,37 @@ input[type=range]::-moz-range-thumb {
   .social-btn { width: 14px; height: 14px; }
   .bb-item { font-size: 0.38rem; gap: 6px; }
   
-  #ctrl-panel { width: 92vw; left: -94vw; top: 64px; bottom: 44px; }
-  #ctrl-panel.open ~ #ctrl-toggle { left: 92vw; }
-  #stats-panel { width: 92vw; right: -94vw; top: 64px; bottom: 44px; }
-  #stats-panel.open ~ #stats-toggle { right: 92vw; }
+  #ctrl-toggle { top: 40%; }
+  #stats-toggle { top: 60%; }
+  
+  #ctrl-panel { 
+    width: 88vw; left: -90vw; top: 64px; bottom: 44px; 
+    background: rgba(4, 4, 12, 0.25);
+    backdrop-filter: blur(32px) saturate(1.6);
+  }
+  #ctrl-panel.open ~ #ctrl-toggle { left: 88vw; }
+  
+  #stats-panel { 
+    width: 88vw; right: -90vw; top: 64px; bottom: 44px; 
+    background: rgba(4, 4, 12, 0.25);
+    backdrop-filter: blur(32px) saturate(1.6);
+  }
+  #stats-panel.open ~ #stats-toggle { right: 88vw; }
+  
+  .info-box {
+    width: 92vw;
+    background: rgba(4, 4, 12, 0.35);
+    backdrop-filter: blur(40px) saturate(1.8);
+  }
   
   .cp-header, .sp-header { padding: 18px 20px 14px; }
   .cp-body, .sp-body { padding: 16px 20px; }
-  .ib-header { padding: 20px 24px 16px; flex-direction: column; gap: 16px; }
-  .ib-title { font-size: 1.5rem; }
-  .ib-subtitle { font-size: 1rem; }
+  .ib-header { padding: 20px 24px 16px; flex-direction: column; gap: 12px; }
+  .ib-title { font-size: 1.5rem; letter-spacing: 0.1em; }
+  .ib-subtitle { font-size: 0.95rem; }
   .ib-body { padding: 24px 20px; }
-  .ib-para { font-size: 1rem; }
-  .ib-math { font-size: 0.65rem; }
+  .ib-para { font-size: 1rem; line-height: 1.6; }
+  .ib-math { font-size: 0.65rem; padding: 10px 12px; }
   
   .corner { width: 16px; height: 16px; }
   .corner-tl { top: 12px; left: 12px; }
@@ -1258,7 +1304,15 @@ input[type=range]::-moz-range-thumb {
   </div>
 
   <!-- Info button -->
-  <div id="info-btn">Scientific Data</div>
+  <button id="info-btn">
+    <div class="ib-btn-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+    </div>
+    <div class="ib-btn-text">
+      <span class="ib-btn-label">What is Gargantua?</span>
+      <span class="ib-btn-sub">Observatory Intel</span>
+    </div>
+  </button>
 </div>
 
 <!-- Info overlay -->
@@ -2033,9 +2087,15 @@ const statsPanel= document.getElementById('stats-panel');
 const statsToggle= document.getElementById('stats-toggle');
 
 ctrlToggle.addEventListener('click', () => {
+  if (window.innerWidth <= 600 && !ctrlPanel.classList.contains('open')) {
+    statsPanel.classList.remove('open');
+  }
   ctrlPanel.classList.toggle('open');
 });
 statsToggle.addEventListener('click', () => {
+  if (window.innerWidth <= 600 && !statsPanel.classList.contains('open')) {
+    ctrlPanel.classList.remove('open');
+  }
   statsPanel.classList.toggle('open');
 });
 
