@@ -26,7 +26,11 @@
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-body {
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
   background: var(--void);
   color: var(--white);
@@ -37,57 +41,163 @@ body {
 
 canvas#c {
   display: block;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   position: fixed;
-  inset: 0;
+  top: 0; left: 0;
 }
 
 /* ─── LOADER ─────────────────────────────────────────────── */
 #loader {
   position: fixed; inset: 0; z-index: 1000;
-  background: #000;
+  background: radial-gradient(circle at center, #0a0a14 0%, #000 100%);
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  gap: 32px;
-  transition: opacity 1.2s ease;
+  overflow: hidden;
+  transition: opacity 1.5s cubic-bezier(0.19, 1, 0.22, 1);
 }
 #loader.fade { opacity: 0; pointer-events: none; }
+
+#loader::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: 
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(circle at center, black, transparent 80%);
+  pointer-events: none;
+  animation: gridMove 20s linear infinite;
+}
+
+@keyframes gridMove {
+  from { background-position: 0 0; }
+  to { background-position: 60px 60px; }
+}
+
+/* Scanning line */
+#loader::after {
+  content: '';
+  position: absolute; top: -100%; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(180deg, transparent 0%, rgba(232, 160, 64, 0.05) 50%, transparent 100%);
+  animation: scan 4s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes scan {
+  0% { top: -100%; }
+  100% { top: 100%; }
+}
+
+.loader-decor {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+
+.loader-ring {
+  position: absolute;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 50%;
+  animation: ringRotate 30s linear infinite;
+}
+.ring-1 { width: 40vh; height: 40vh; border-top-color: rgba(232, 160, 64, 0.1); animation-duration: 20s; }
+.ring-2 { width: 60vh; height: 60vh; border-bottom-color: rgba(168, 200, 232, 0.1); animation-duration: 40s; animation-direction: reverse; }
+.ring-3 { width: 80vh; height: 80vh; border-left-color: rgba(255, 255, 255, 0.05); animation-duration: 60s; }
+
+@keyframes ringRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.loader-content {
+  position: relative;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 48px;
+  z-index: 2;
+}
+
+.loader-brand {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+
 .loader-name {
   font-family: var(--font-head);
-  font-size: clamp(2rem, 6vw, 4.5rem);
+  font-size: clamp(2.4rem, 10vw, 5.2rem);
   font-weight: 800;
-  letter-spacing: 0.35em;
+  letter-spacing: 0.25em;
   color: var(--white);
   text-transform: uppercase;
+  text-align: center;
+  text-shadow: 0 0 30px rgba(255,255,255,0.1);
+  margin-right: -0.25em;
+  animation: loaderReveal 2.5s cubic-bezier(0.19, 1, 0.22, 1) forwards, flicker 4s linear infinite 2.5s;
 }
+
+@keyframes loaderReveal {
+  0% { opacity: 0; transform: scale(1.1); filter: blur(40px); letter-spacing: 1em; }
+  100% { opacity: 1; transform: scale(1); filter: blur(0); letter-spacing: 0.25em; }
+}
+
+@keyframes flicker {
+  0%, 19.999%, 22%, 62.999%, 64%, 64.999%, 70%, 100% { opacity: 1; }
+  20%, 21.999%, 63%, 63.999%, 65%, 69.999% { opacity: 0.85; }
+}
+
 .loader-sub {
   font-family: var(--font-mono);
   font-size: 0.6rem;
-  letter-spacing: 0.5em;
-  color: var(--muted);
+  letter-spacing: 0.6em;
+  color: var(--amber);
   text-transform: uppercase;
+  text-align: center;
+  padding: 0 24px;
+  margin-right: -0.6em;
+  opacity: 0;
+  animation: subReveal 3s cubic-bezier(0.19, 1, 0.22, 1) 0.8s forwards;
 }
+
+@keyframes subReveal {
+  0% { opacity: 0; transform: translateY(20px); letter-spacing: 1.2em; }
+  100% { opacity: 0.8; transform: translateY(0); letter-spacing: 0.6em; }
+}
+
+.loader-ui {
+  display: flex; flex-direction: column; align-items: center; gap: 28px;
+  width: 340px;
+}
+
 .loader-bar-wrap {
-  width: 280px;
-  height: 1px;
-  background: rgba(255,255,255,0.1);
+  width: 100%;
+  height: 2px;
+  background: rgba(255,255,255,0.04);
   position: relative;
   overflow: hidden;
+  border-radius: 4px;
 }
 .loader-bar {
   height: 100%;
-  background: linear-gradient(90deg, var(--amber), #fff);
+  background: linear-gradient(90deg, transparent, var(--amber), #fff, var(--amber), transparent);
+  background-size: 200% 100%;
   width: 0%;
   transition: width 2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 0 12px var(--amber);
+  box-shadow: 0 0 25px var(--amber-glow);
+  animation: barFlow 2s linear infinite;
 }
+
+@keyframes barFlow {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
 .loader-status {
   font-family: var(--font-mono);
-  font-size: 0.5rem;
+  font-size: 0.45rem;
   letter-spacing: 0.3em;
   color: var(--ghost);
   text-transform: uppercase;
+  margin-top: -12px;
+  opacity: 0.6;
 }
 
 /* ─── GLOBAL HUD LAYOUT ──────────────────────────────────── */
@@ -152,7 +262,7 @@ canvas#c {
 .tb-name {
   font-family: var(--font-head);
   font-size: 1.45rem; font-weight: 800;
-  letter-spacing: 0.45em;
+  letter-spacing: 0.3em;
   color: var(--white);
   line-height: 1;
   text-transform: uppercase;
@@ -161,7 +271,7 @@ canvas#c {
 .tb-tagline {
   font-family: var(--font-mono);
   font-size: 0.5rem;
-  letter-spacing: 0.45em;
+  letter-spacing: 0.3em;
   color: var(--amber);
   text-transform: uppercase;
   opacity: 0.85;
@@ -929,6 +1039,15 @@ input[type=range]::-moz-range-thumb {
   
   #info-btn { bottom: 48px; right: 16px; padding: 6px 12px; font-size: 0.38rem; }
   #toast { bottom: 48px; font-size: 0.45rem; padding: 6px 16px; }
+
+  /* Loader Mobile */
+  .loader-content { gap: 32px; }
+  .loader-ui { width: 260px; gap: 20px; }
+  .loader-name { font-size: clamp(1.8rem, 12vw, 2.8rem); letter-spacing: 0.15em; margin-right: -0.15em; }
+  .loader-sub { font-size: 0.42rem; letter-spacing: 0.3em; text-align: center; padding: 0 32px; line-height: 1.6; margin-right: -0.3em; }
+  .loader-bar-wrap { width: 100%; }
+  .loader-status { font-size: 0.38rem; letter-spacing: 0.12em; opacity: 0.5; }
+  .loader-ring { display: none; } /* Hide large rings on small mobile */
 }
 
 @media (max-width: 400px) {
@@ -945,10 +1064,21 @@ input[type=range]::-moz-range-thumb {
 
 <!-- Loader -->
 <div id="loader">
-  <div class="loader-name">GARGANTUA</div>
-  <div class="loader-sub">Kerr Black Hole Observatory · Interstellar</div>
-  <div class="loader-bar-wrap"><div class="loader-bar" id="lbar"></div></div>
-  <div class="loader-status" id="lstatus">Initializing WebGL2 Geodesic Engine…</div>
+  <div class="loader-decor">
+    <div class="loader-ring ring-1"></div>
+    <div class="loader-ring ring-2"></div>
+    <div class="loader-ring ring-3"></div>
+  </div>
+  <div class="loader-content">
+    <div class="loader-brand">
+      <div class="loader-name">GARGANTUA</div>
+      <div class="loader-sub">Kerr Black Hole Observatory · Interstellar</div>
+    </div>
+    <div class="loader-ui">
+      <div class="loader-bar-wrap"><div class="loader-bar" id="lbar"></div></div>
+      <div class="loader-status" id="lstatus">Initializing Geodesic Engine…</div>
+    </div>
+  </div>
 </div>
 
 <!-- Main canvas -->
@@ -1407,8 +1537,11 @@ if (!gl) {
 
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  cv.width  = Math.floor(window.innerWidth  * dpr);
-  cv.height = Math.floor(window.innerHeight * dpr);
+  const W = window.innerWidth, H = window.innerHeight;
+  cv.width  = Math.floor(W * dpr);
+  cv.height = Math.floor(H * dpr);
+  cv.style.width  = W + 'px';
+  cv.style.height = H + 'px';
   gl.viewport(0, 0, cv.width, cv.height);
 }
 window.addEventListener('resize', resize);
